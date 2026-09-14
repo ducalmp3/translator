@@ -1,0 +1,107 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>VideoTraduci — videochiamata con sottotitoli tradotti</title>
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+
+<header class="topbar">
+  <div class="topbar-main">
+    <h1>VideoTraduci</h1>
+    <span class="subtitle" data-i18n="appSubtitle">videochiamata 1-a-1 con sottotitoli live tradotti</span>
+  </div>
+  <div class="ui-lang-picker">
+    <span class="globe">🌐</span>
+    <select id="uiLang"></select>
+  </div>
+</header>
+
+<main id="setup-screen" class="screen">
+  <div class="card">
+    <h2 data-i18n="step1Title">1. Le tue lingue</h2>
+    <div class="field-row">
+      <label for="spokenLang" data-i18n="spokenLangLabel">Lingua che parli</label>
+      <select id="spokenLang"></select>
+    </div>
+    <div class="field-row">
+      <label for="captionLang" data-i18n="captionLangLabel">Lingua in cui vuoi leggere i sottotitoli</label>
+      <select id="captionLang"></select>
+    </div>
+
+    <h2 data-i18n="step2Title">2. Avvia o unisciti a una chiamata</h2>
+
+    <div class="option-box">
+      <h3 data-i18n="createTitle">Crea una nuova chiamata</h3>
+      <p class="hint" data-i18n="createHint">Genera un codice da mandare all'altra persona (via chat, email, ecc.).</p>
+      <button id="createBtn" class="primary" data-i18n="createBtnLabel">Crea chiamata</button>
+      <div id="myCodeBox" class="code-box hidden">
+        <span data-i18n="myCodeLabel">Il tuo codice:</span>
+        <code id="myCode">—</code>
+        <button id="copyCodeBtn" class="small" data-i18n="copyBtnLabel">Copia</button>
+        <p class="hint" data-i18n="waitingHint">In attesa che l'altra persona si connetta…</p>
+      </div>
+    </div>
+
+    <div class="option-box">
+      <h3 data-i18n="joinTitle">Unisciti a una chiamata</h3>
+      <p class="hint" data-i18n="joinHint">Incolla qui il codice che ti ha mandato l'altra persona.</p>
+      <div class="field-row">
+        <input id="joinCodeInput" type="text" data-i18n-placeholder="joinPlaceholder" placeholder="es. a1b2c3d4">
+        <button id="joinBtn" class="primary" data-i18n="joinBtnLabel">Connetti</button>
+      </div>
+    </div>
+
+    <p id="setupStatus" class="status"></p>
+    <p class="disclaimer" data-i18n="disclaimer">
+      Funziona meglio con Chrome o Edge (servono per il riconoscimento vocale).
+      Il riconoscimento vocale di Chrome/Edge invia l'audio ai server di Google per la trascrizione;
+      la traduzione usa il servizio gratuito MyMemory. Niente account, niente server da installare —
+      ma il collegamento video passa da un servizio di segnalazione pubblico gratuito (PeerJS) e non
+      ha un server di relay (TURN): reti molto restrittive (VPN aziendali, firewall rigidi) potrebbero
+      bloccare la connessione diretta.
+    </p>
+  </div>
+</main>
+
+<main id="call-screen" class="screen hidden">
+  <div class="video-grid">
+    <div class="video-box">
+      <video id="localVideo" autoplay playsinline muted></video>
+      <span class="video-label" data-i18n="youLabel">Tu</span>
+    </div>
+    <div class="video-box">
+      <video id="remoteVideo" autoplay playsinline></video>
+      <span class="video-label" data-i18n="remoteLabel">Interlocutore</span>
+    </div>
+  </div>
+
+  <div class="controls">
+    <button id="muteBtn" class="small" data-i18n="muteBtnLabel">Silenzia microfono</button>
+    <button id="hangupBtn" class="small danger" data-i18n="hangupBtnLabel">Termina chiamata</button>
+  </div>
+
+  <section class="captions-panel">
+    <div class="live-caption-row">
+      <div class="live-caption-block">
+        <span class="cap-label" data-i18n="youAreSayingLabel">Tu stai dicendo</span>
+        <p id="localLiveCaption" class="live-caption">…</p>
+      </div>
+      <div class="live-caption-block">
+        <span class="cap-label" data-i18n="remoteTranslatedLabel">Interlocutore (tradotto)</span>
+        <p id="remoteLiveCaption" class="live-caption">…</p>
+      </div>
+    </div>
+
+    <h3 data-i18n="transcriptTitle">Trascrizione</h3>
+    <div id="transcriptLog" class="transcript-log"></div>
+  </section>
+</main>
+
+<script src="https://cdn.jsdelivr.net/npm/peerjs@1.5.4/dist/peerjs.min.js"></script>
+<script src="i18n.js"></script>
+<script src="app.js"></script>
+</body>
+</html>
