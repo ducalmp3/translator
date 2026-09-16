@@ -54,6 +54,8 @@ let localStream = null;
 let recognition = null;
 let callActive = false;
 let micMuted = false;
+let recognitionErrorStreak = 0;
+let recognitionRestartTimer = null;
 
 window.currentUiLang = "it";
 
@@ -233,18 +235,31 @@ function startCallAsHost() {
         call.answer(localStream);
         mediaConn = call;
         call.on("stream", attachRemoteStream);
-        call.on("close", endCall);
+        call.on("close", () => endCall(true));
       });
 
       peer.on("connection", (conn) => {
         wireDataConnection(conn);
       });
 
+      // Il socket verso il server di segnalazione può cadere per un attimo (rete
+      // instabile, wifi che cambia canale, ecc.) senza che la chiamata P2P sia
+      // davvero da chiudere: ritentiamo la riconnessione prima di arrenderci.
+      peer.on("disconnected", () => {
+        if (callActive) {
+          try { peer.reconnect(); } catch (e) {}
+        }
+      });
+
       peer.on("error", (err) => {
         console.error(err);
-        setStatus(t("statusConnError") + err.type, true);
-        createBtn.disabled = false;
-        joinBtn.disabled = false;
+        if (callActive) {
+          endCall(true);
+        } else {
+          setStatus(t("statusConnError") + err.type, true);
+          createBtn.disabled = false;
+          joinBtn.disabled = false;
+        }
       });
     })
     .catch((err) => {
@@ -274,17 +289,27 @@ function joinCall() {
         setStatus(t("statusConnecting"));
         mediaConn = peer.call(remoteCode, localStream);
         mediaConn.on("stream", attachRemoteStream);
-        mediaConn.on("close", endCall);
+        mediaConn.on("close", () => endCall(true));
 
         const conn = peer.connect(remoteCode);
         wireDataConnection(conn);
       });
 
+      peer.on("disconnected", () => {
+        if (callActive) {
+          try { peer.reconnect(); } catch (e) {}
+        }
+      });
+
       peer.on("error", (err) => {
         console.error(err);
-        setStatus(t("statusConnError") + err.type + t("statusConnErrorCheckCode"), true);
-        createBtn.disabled = false;
-        joinBtn.disabled = false;
+        if (callActive) {
+          endCall(true);
+        } else {
+          setStatus(t("statusConnError") + err.type + t("statusConnErrorCheckCode"), true);
+          createBtn.disabled = false;
+          joinBtn.disabled = false;
+        }
       });
     })
     .catch((err) => {
@@ -295,8 +320,12 @@ function joinCall() {
     });
 }
 
-function endCall() {
+function endCall(droppedUnexpectedly) {
   callActive = false;
+  if (recognitionRestartTimer) {
+    clearTimeout(recognitionRestartTimer);
+    recognitionRestartTimer = null;
+  }
   if (recognition) {
     try { recognition.onend = null; recognition.stop(); } catch (e) {}
     recognition = null;
@@ -314,6 +343,9 @@ function endCall() {
   localLiveCaption.textContent = "…";
   remoteLiveCaption.textContent = "…";
   showSetupScreen();
+  if (droppedUnexpectedly === true) {
+    setStatus(t("callDropped"), true);
+  }
 }
 
 function toggleMute() {
@@ -356,6 +388,13 @@ async function handleIncomingSpeech(text, senderLangCode) {
   appendTranscript(t("remoteLabel"), text, translated || t("noTranslationAvailable"), true);
 }
 
+// Errori del riconoscimento vocale dopo i quali non ha senso ritentare (l'utente
+// deve prima sistemare qualcosa): mostriamo un messaggio chiaro invece di ritentare
+// all'infinito, cosa che su alcune reti aziendali può mandare in crash la scheda
+// del browser (loop stretto di richieste che falliscono subito una dopo l'altra).
+const FATAL_SPEECH_ERRORS = ["not-allowed", "service-not-allowed", "audio-capture", "language-not-supported"];
+const MAX_SPEECH_ERROR_STREAK = 6;
+
 function startRecognition() {
   const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
   if (!SR) {
@@ -366,12 +405,14 @@ function startRecognition() {
   const mySpokenCode = spokenLangSel.value;
   const mySpokenLang = getLang(mySpokenCode);
 
+  recognitionErrorStreak = 0;
   recognition = new SR();
   recognition.lang = mySpokenLang.speech;
   recognition.continuous = true;
   recognition.interimResults = true;
 
   recognition.onresult = (event) => {
+    recognitionErrorStreak = 0; // il riconoscimento funziona: azzera il contatore errori
     let interim = "";
     for (let i = event.resultIndex; i < event.results.length; i++) {
       const result = event.results[i];
@@ -389,14 +430,41 @@ function startRecognition() {
     if (interim) localLiveCaption.textContent = interim;
   };
 
+  let specificMessageShown = false;
+
   recognition.onerror = (event) => {
     console.warn("Speech recognition error:", event.error);
+    recognitionErrorStreak++;
+
+    if (event.error === "network") {
+      localLiveCaption.textContent = t("speechNetworkError");
+      specificMessageShown = true;
+    } else if (event.error === "not-allowed" || event.error === "service-not-allowed") {
+      localLiveCaption.textContent = t("speechPermissionError");
+      specificMessageShown = true;
+    }
+
+    if (FATAL_SPEECH_ERRORS.includes(event.error)) {
+      recognitionErrorStreak = MAX_SPEECH_ERROR_STREAK; // non ritentare, serve un intervento manuale
+    }
   };
 
   recognition.onend = () => {
-    if (callActive) {
-      try { recognition.start(); } catch (e) {}
+    if (!callActive) return;
+
+    if (recognitionErrorStreak >= MAX_SPEECH_ERROR_STREAK) {
+      if (!specificMessageShown) localLiveCaption.textContent = t("speechGaveUp");
+      return; // fermiamo i tentativi automatici: niente più loop
     }
+
+    // backoff crescente man mano che gli errori si ripetono, per non martellare
+    // il servizio (e il browser) più volte al secondo
+    const delay = recognitionErrorStreak > 0 ? Math.min(1000 * recognitionErrorStreak, 5000) : 250;
+    recognitionRestartTimer = setTimeout(() => {
+      if (callActive) {
+        try { recognition.start(); } catch (e) {}
+      }
+    }, delay);
   };
 
   try { recognition.start(); } catch (e) { console.error(e); }
@@ -405,7 +473,7 @@ function startRecognition() {
 createBtn.addEventListener("click", startCallAsHost);
 joinBtn.addEventListener("click", joinCall);
 muteBtn.addEventListener("click", toggleMute);
-hangupBtn.addEventListener("click", endCall);
+hangupBtn.addEventListener("click", () => endCall(false));
 uiLangSel.addEventListener("change", () => setUiLang(uiLangSel.value));
 copyCodeBtn.addEventListener("click", () => {
   navigator.clipboard.writeText(myCodeEl.textContent).then(() => {

@@ -76,6 +76,28 @@ in città o paesi diversi.
   teoria, provare a connettersi. Va condiviso solo con la persona giusta e usato per chiamate
   singole (ogni "Crea chiamata" genera un codice nuovo).
 
+## Risoluzione problemi
+
+- **"Non trascrive né traduce niente" / la chiamata cade a un certo punto.** La causa più
+  probabile, soprattutto testando da un **laptop aziendale**, è che la rete blocchi l'accesso
+  ai server di Google usati da Chrome/Edge per il riconoscimento vocale (VPN aziendali e
+  firewall restrittivi spesso lo fanno). Quando questo succede, l'app ora mostra un messaggio
+  esplicito sotto "Tu stai dicendo" (es. *"Il riconoscimento vocale non riesce a raggiungere i
+  server di Google..."*) invece di restare in silenzio, e non ritenta all'infinito (i tentativi
+  ravvicinati potevano in passato appesantire il browser fino a farlo sembrare "chiuso").
+  Per verificare che sia questo il problema, prova la stessa chiamata da una rete diversa
+  (es. l'hotspot del telefono) invece che dalla rete aziendale.
+- **La chiamata si interrompe da sola.** Con la stessa causa di rete instabile, anche il
+  collegamento video può cadere: l'app ora prova a riconnettersi automaticamente per le
+  interruzioni brevi e, se non ci riesce, torna alla schermata iniziale mostrando *"La
+  chiamata si è interrotta inaspettatamente..."* invece di chiudersi senza spiegazioni.
+- **I sottotitoli non compaiono su uno smartphone.** Su Android, Chrome funziona bene. Su
+  iPhone/iPad, invece, il riconoscimento vocale del browser (sia su Safari che su Chrome, che
+  su iOS usa comunque il motore di Safari sotto il cofano) è noto per essere poco affidabile —
+  si interrompe dopo pochi secondi o non parte affatto. Al momento i sottotitoli in invio
+  funzionano in modo affidabile solo da Chrome/Edge desktop e da Chrome su Android; su iOS
+  l'app resta comunque utilizzabile per la sola videochiamata.
+
 ## Possibili miglioramenti futuri
 
 - Passare a un motore di traduzione/trascrizione cloud (Google/Azure/DeepL) per qualità e
