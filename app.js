@@ -41,6 +41,23 @@ const ICE_SERVERS = [
   },
 ];
 
+// Blocco d'accesso: una passphrase semplice condivisa con chi deve usare l'app,
+// pensata per tenere fuori visitatori casuali (link indicizzato, repository
+// pubblico trovato per caso) — NON è vera sicurezza: chi apre gli strumenti
+// sviluppatore del browser può comunque leggere questo file, hash incluso.
+// Per cambiare la passphrase, genera il nuovo hash SHA-256 (es. in una console
+// con: crypto.subtle.digest("SHA-256", new TextEncoder().encode("nuova-passphrase"))
+// oppure con un tool online) e sostituisci il valore qui sotto.
+const PASSPHRASE_HASH_HEX = "1d7b8fa16db105df2b7eceed8eec88a976dfac86e55ca04801874d48206935fb";
+
+async function sha256Hex(text) {
+  const bytes = new TextEncoder().encode(text);
+  const digest = await crypto.subtle.digest("SHA-256", bytes);
+  return Array.from(new Uint8Array(digest))
+    .map((b) => b.toString(16).padStart(2, "0"))
+    .join("");
+}
+
 const LANGUAGES = [
   { code: "it", speech: "it-IT" },
   { code: "en", speech: "en-US" },
@@ -61,6 +78,10 @@ const LANGUAGES = [
 
 const el = (id) => document.getElementById(id);
 
+const lockScreen = el("lock-screen");
+const lockPassInput = el("lockPassInput");
+const lockBtn = el("lockBtn");
+const lockStatus = el("lockStatus");
 const setupScreen = el("setup-screen");
 const callScreen = el("call-screen");
 const uiLangSel = el("uiLang");
@@ -228,6 +249,39 @@ function showSetupScreen() {
   createBtn.disabled = false;
   joinBtn.disabled = false;
   setStatus("");
+}
+
+function isUnlocked() {
+  try { return localStorage.getItem("videotraduci_unlocked") === "1"; } catch (e) { return false; }
+}
+
+function unlockAndShowSetup() {
+  try { localStorage.setItem("videotraduci_unlocked", "1"); } catch (e) {}
+  lockScreen.classList.add("hidden");
+  showSetupScreen();
+}
+
+async function attemptUnlock() {
+  const attempt = lockPassInput.value;
+  if (!attempt) return;
+  lockBtn.disabled = true;
+  try {
+    const hash = await sha256Hex(attempt);
+    if (hash === PASSPHRASE_HASH_HEX) {
+      lockStatus.textContent = "";
+      unlockAndShowSetup();
+    } else {
+      lockStatus.textContent = t("lockError");
+      lockStatus.style.color = "#ff5c5c";
+      lockPassInput.value = "";
+      lockPassInput.focus();
+    }
+  } catch (e) {
+    lockStatus.textContent = t("lockError");
+    lockStatus.style.color = "#ff5c5c";
+  } finally {
+    lockBtn.disabled = false;
+  }
 }
 
 function wireDataConnection(conn) {
@@ -515,6 +569,17 @@ copyCodeBtn.addEventListener("click", () => {
     setTimeout(() => (copyCodeBtn.textContent = t("copyBtnLabel")), 1500);
   });
 });
+lockBtn.addEventListener("click", attemptUnlock);
+lockPassInput.addEventListener("keydown", (e) => {
+  if (e.key === "Enter") attemptUnlock();
+});
 
 window.currentUiLang = detectDefaultUiLang();
 applyTranslations();
+
+if (isUnlocked()) {
+  lockScreen.classList.add("hidden");
+  setupScreen.classList.remove("hidden");
+} else {
+  lockPassInput.focus();
+}

@@ -27,6 +27,22 @@ sottotitoli"): un utilizzatore brasiliano può impostare l'interfaccia in portog
 lingua dei sottotitoli — e viceversa per la persona dall'altra parte della chiamata. Ognuno
 imposta le proprie tre scelte in autonomia sul proprio browser.
 
+## Accesso con passphrase
+
+Prima di arrivare alla schermata principale, l'app chiede una passphrase condivisa
+(salvata poi nel browser, non richiesta più su quel dispositivo finché non cancelli
+i dati del sito). Serve solo a tenere fuori visitatori casuali (un link indicizzato
+da un motore di ricerca, qualcuno che trova il repository per caso) — **non è vera
+sicurezza**: il codice di `app.js` (hash della passphrase incluso) resta comunque
+leggibile da chiunque apra gli strumenti sviluppatore del browser sulla pagina
+pubblicata, come qualsiasi cosa scritta in un sito statico senza un server dietro.
+Va bene per tenere fuori i curiosi, non per proteggere davvero l'accesso da chi la
+cerca apposta.
+
+Per cambiare la passphrase, genera il nuovo hash SHA-256 e sostituisci la costante
+`PASSPHRASE_HASH_HEX` in cima ad `app.js` — le istruzioni sono nel commento sopra
+quella riga.
+
 ## Come si usa
 
 1. Apri il progetto con un piccolo server locale (necessario perché i browser bloccano

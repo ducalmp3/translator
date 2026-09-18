@@ -19,7 +19,19 @@
   </div>
 </header>
 
-<main id="setup-screen" class="screen">
+<main id="lock-screen" class="screen">
+  <div class="card">
+    <h2 data-i18n="lockTitle">Accesso protetto</h2>
+    <p class="hint" data-i18n="lockHint">Inserisci la passphrase che ti è stata comunicata per usare l'app.</p>
+    <div class="field-row">
+      <input id="lockPassInput" type="password" data-i18n-placeholder="lockPlaceholder" placeholder="Passphrase" autocomplete="off">
+      <button id="lockBtn" class="primary" data-i18n="lockBtnLabel">Sblocca</button>
+    </div>
+    <p id="lockStatus" class="status"></p>
+  </div>
+</main>
+
+<main id="setup-screen" class="screen hidden">
   <div class="card">
     <h2 data-i18n="step1Title">1. Le tue lingue</h2>
     <div class="field-row">
