@@ -44,10 +44,10 @@ const I18N = {
     speechPermissionError: "Permesso per il microfono negato al riconoscimento vocale. Controlla i permessi del sito nel browser.",
     speechGaveUp: "Il riconoscimento vocale continua a fallire: mi sono fermato per non sovraccaricare il browser. Ricarica la pagina per riprovare.",
     callDropped: "La chiamata si è interrotta inaspettatamente (connessione persa). Riprova a crearne una nuova.",
-    lockTitle: "Accesso protetto",
+    lockTitle: "Password",
     lockHint: "Inserisci la passphrase che ti è stata comunicata per usare l'app.",
     lockPlaceholder: "Passphrase",
-    lockBtnLabel: "Sblocca",
+    lockBtnLabel: "Enter",
     lockError: "Passphrase errata, riprova.",
   },
   en: {
