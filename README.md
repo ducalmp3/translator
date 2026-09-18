@@ -61,13 +61,16 @@ in città o paesi diversi.
 
 ## Limiti da tenere presente (è un prototipo gratuito, non un prodotto professionale)
 
-- **Nessun server TURN**: la connessione video è diretta tra i due browser. Nella grande
-  maggioranza delle reti domestiche/ufficio funziona senza problemi, ma reti molto
-  restrittive (VPN aziendali rigide, alcuni firewall) potrebbero impedire la connessione
-  diretta e far fallire la chiamata.
-- **Riconoscimento vocale solo su Chrome/Edge**: su altri browser i sottotitoli non
-  funzioneranno. Inoltre Chrome invia l'audio ai server di Google per trascriverlo (non è
-  un'elaborazione 100% locale) — da tenere presente per conversazioni sensibili.
+- **Nessun server TURN di default**: la connessione video prova a essere diretta tra i due
+  dispositivi. Su molte reti va bene così, ma su altre (doppio NAT, CGNAT delle reti mobili,
+  alcune reti domestiche, VPN aziendali, firewall restrittivi) il collegamento diretto fallisce
+  e la chiamata cade dopo pochi secondi. Più sotto, in "Risoluzione problemi", trovi come
+  aggiungere gratuitamente un server TURN per risolvere in modo stabile.
+- **Riconoscimento vocale solo su Chrome/Edge**: su Firefox e Safari i sottotitoli non
+  funzionano — non è un problema di configurazione, questi browser non implementano l'API di
+  riconoscimento vocale che l'app usa. Inoltre Chrome/Edge inviano l'audio ai server di Google
+  per trascriverlo (non è un'elaborazione 100% locale) — da tenere presente per conversazioni
+  sensibili.
 - **Traduzione con quota gratuita limitata**: MyMemory è gratuito ma ha un tetto giornaliero
   di richieste per indirizzo IP anonimo. Per un uso normale (poche chiamate al giorno) non
   dovresti accorgertene; con un uso molto intenso potresti ricevere traduzioni mancanti.
@@ -78,19 +81,28 @@ in città o paesi diversi.
 
 ## Risoluzione problemi
 
-- **"Non trascrive né traduce niente" / la chiamata cade a un certo punto.** La causa più
-  probabile, soprattutto testando da un **laptop aziendale**, è che la rete blocchi l'accesso
-  ai server di Google usati da Chrome/Edge per il riconoscimento vocale (VPN aziendali e
-  firewall restrittivi spesso lo fanno). Quando questo succede, l'app ora mostra un messaggio
-  esplicito sotto "Tu stai dicendo" (es. *"Il riconoscimento vocale non riesce a raggiungere i
-  server di Google..."*) invece di restare in silenzio, e non ritenta all'infinito (i tentativi
-  ravvicinati potevano in passato appesantire il browser fino a farlo sembrare "chiuso").
-  Per verificare che sia questo il problema, prova la stessa chiamata da una rete diversa
-  (es. l'hotspot del telefono) invece che dalla rete aziendale.
-- **La chiamata si interrompe da sola.** Con la stessa causa di rete instabile, anche il
-  collegamento video può cadere: l'app ora prova a riconnettersi automaticamente per le
-  interruzioni brevi e, se non ci riesce, torna alla schermata iniziale mostrando *"La
-  chiamata si è interrotta inaspettatamente..."* invece di chiudersi senza spiegazioni.
+- **"Non trascrive niente" su Firefox.** Non è risolvibile lato app: Firefox non implementa
+  l'API di riconoscimento vocale del browser (Chrome e Edge sì). Serve usare Chrome o Edge sul
+  dispositivo da cui parli; su Firefox l'app resta utilizzabile per la sola videochiamata.
+- **La chiamata cade dopo pochi secondi.** Anche tra due reti Wi-Fi domestiche diverse questo
+  è quasi sempre lo stesso problema: senza un server TURN, il collegamento diretto tra i due
+  dispositivi fallisce ogni volta che almeno una delle due reti usa un NAT "difficile"
+  (doppio NAT, CGNAT — molto comune su reti mobili e su alcuni router domestici/ISP). Non è un
+  guasto dell'app, è un limite intrinseco del "niente server in mezzo, tutto gratis": la
+  soluzione stabile è aggiungere un server TURN gratuito:
+
+  1. Registrati su [dashboard.metered.ca/signup](https://dashboard.metered.ca/signup) (gratis,
+     20 GB/mese inclusi).
+  2. Nel pannello, genera una credenziale ("Generate your first credential").
+  3. Clicca su **"Instructions"** e copia l'array `iceServers` che ti mostra (contiene URL,
+     username e credential).
+  4. Apri `app.js`, trova la costante `ICE_SERVERS` in cima al file e sostituiscila con
+     l'array appena copiato (lasciando anche la riga dello STUN di Google va bene).
+  5. Ricarica i file sul repository — GitHub Pages li ripubblica in automatico.
+
+  Nel frattempo, l'app prova comunque a riconnettersi da sola per le interruzioni brevi della
+  segnalazione, e se la chiamata cade davvero torna alla schermata iniziale con un messaggio
+  chiaro invece di sparire senza spiegazioni.
 - **I sottotitoli non compaiono su uno smartphone.** Su Android, Chrome funziona bene. Su
   iPhone/iPad, invece, il riconoscimento vocale del browser (sia su Safari che su Chrome, che
   su iOS usa comunque il motore di Safari sotto il cofano) è noto per essere poco affidabile —

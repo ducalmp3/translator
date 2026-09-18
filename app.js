@@ -7,6 +7,40 @@
 // sono generati automaticamente con Intl.DisplayNames, così restano sempre coerenti
 // con la lingua dell'interfaccia scelta, senza doverli tradurre a mano.
 
+// Se le chiamate cadono per via di reti restrittive (doppio NAT, CGNAT, reti mobili,
+// molte reti domestiche/aziendali), il motivo è quasi sempre l'assenza di un server
+// TURN: senza TURN il collegamento video funziona solo quando i due dispositivi
+// riescono a connettersi direttamente, cosa che su molte reti reali non succede.
+// Per risolvere in modo stabile: registrati gratis su https://dashboard.metered.ca/signup,
+// nel pannello genera una credenziale, clicca "Instructions" e incolla qui sotto
+// l'array "iceServers" che ti mostra (contiene sia STUN che TURN con le tue
+// credenziali). Finché non lo fai, resta solo lo STUN pubblico di Google, che basta
+// per molte reti ma non per quelle più restrittive.
+const ICE_SERVERS = [
+  { urls: "stun:stun.l.google.com:19302" },
+  { urls: "stun:stun.relay.metered.ca:80" },
+  {
+    urls: "turn:standard.relay.metered.ca:80",
+    username: "cf8610ff632d3bfa520ab9a2",
+    credential: "WC/syrP14OaQYw6W",
+  },
+  {
+    urls: "turn:standard.relay.metered.ca:80?transport=tcp",
+    username: "cf8610ff632d3bfa520ab9a2",
+    credential: "WC/syrP14OaQYw6W",
+  },
+  {
+    urls: "turn:standard.relay.metered.ca:443",
+    username: "cf8610ff632d3bfa520ab9a2",
+    credential: "WC/syrP14OaQYw6W",
+  },
+  {
+    urls: "turns:standard.relay.metered.ca:443?transport=tcp",
+    username: "cf8610ff632d3bfa520ab9a2",
+    credential: "WC/syrP14OaQYw6W",
+  },
+];
+
 const LANGUAGES = [
   { code: "it", speech: "it-IT" },
   { code: "en", speech: "en-US" },
@@ -223,7 +257,7 @@ function startCallAsHost() {
   ensureLocalMedia()
     .then(() => {
       const code = randomCode();
-      peer = new Peer(code);
+      peer = new Peer(code, { config: { iceServers: ICE_SERVERS } });
 
       peer.on("open", (id) => {
         myCodeEl.textContent = id;
@@ -283,7 +317,7 @@ function joinCall() {
 
   ensureLocalMedia()
     .then(() => {
-      peer = new Peer();
+      peer = new Peer(undefined, { config: { iceServers: ICE_SERVERS } });
 
       peer.on("open", () => {
         setStatus(t("statusConnecting"));
