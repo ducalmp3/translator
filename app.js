@@ -454,18 +454,102 @@ function appendTranscript(who, originalText, translatedText, isRemote) {
   transcriptLog.scrollTop = transcriptLog.scrollHeight;
 }
 
-async function translateText(text, sourceLang, targetLang) {
-  if (sourceLang === targetLang) return text;
+// --- Traduzione ---------------------------------------------------------
+// Due strade, provate in quest'ordine:
+//  1. Il traduttore integrato nel browser (Translator API, Chrome 138+ e Edge
+//     148+, solo desktop): gira in locale sul dispositivo, è gratuito, non ha
+//     limiti giornalieri e non manda il testo a nessun server esterno. La prima
+//     volta che serve una coppia di lingue il browser scarica il modello da solo.
+//  2. MyMemory, come riserva per i dispositivi senza traduttore integrato
+//     (attualmente tutti i cellulari). È gratuito ma ha un limite giornaliero
+//     per indirizzo IP: circa 5.000 caratteri in forma anonima, che salgono a
+//     circa 50.000 indicando un'email nella richiesta (nessuna registrazione,
+//     basta scriverla qui sotto).
+const MYMEMORY_EMAIL = "";
+
+const builtInTranslators = new Map(); // "sorgente|destinazione" -> Promise<Translator|null>
+let myMemoryQuotaExhausted = false;
+let quotaNoticeShown = false;
+
+// Il traduttore integrato ragiona per lingua, non per variante regionale: se
+// "pt-BR" non è supportato come tale, riproviamo con "pt".
+function langVariants(code) {
+  const base = code.split("-")[0];
+  return base === code ? [code] : [code, base];
+}
+
+async function getBuiltInTranslator(sourceLang, targetLang) {
+  if (!("Translator" in self)) return null;
+
+  const key = `${sourceLang}|${targetLang}`;
+  if (builtInTranslators.has(key)) return builtInTranslators.get(key);
+
+  const pending = (async () => {
+    for (const src of langVariants(sourceLang)) {
+      for (const tgt of langVariants(targetLang)) {
+        try {
+          const opts = { sourceLanguage: src, targetLanguage: tgt };
+          const status = await Translator.availability(opts);
+          if (status === "unavailable") continue;
+          return await Translator.create(opts);
+        } catch (err) {
+          console.warn("Traduttore integrato non utilizzabile per", src, "->", tgt, err);
+        }
+      }
+    }
+    return null;
+  })();
+
+  builtInTranslators.set(key, pending);
+  return pending;
+}
+
+async function translateWithMyMemory(text, sourceLang, targetLang) {
+  if (myMemoryQuotaExhausted) return null;
   try {
-    const url = `https://api.mymemory.translated.net/get?q=${encodeURIComponent(text)}&langpair=${sourceLang}|${targetLang}`;
+    let url = `https://api.mymemory.translated.net/get?q=${encodeURIComponent(text)}` +
+      `&langpair=${encodeURIComponent(sourceLang)}|${encodeURIComponent(targetLang)}`;
+    if (MYMEMORY_EMAIL) url += `&de=${encodeURIComponent(MYMEMORY_EMAIL)}`;
+
     const res = await fetch(url);
     const json = await res.json();
-    const translated = json && json.responseData && json.responseData.translatedText;
+    const translated = (json && json.responseData && json.responseData.translatedText) || "";
+
+    // Quota esaurita: MyMemory risponde 200 mettendo il testo dell'avviso al
+    // posto della traduzione, quindi va riconosciuto e trattato come errore,
+    // altrimenti l'avviso finirebbe nei sottotitoli come se fosse il tradotto.
+    const quotaHit =
+      json.responseStatus === 403 ||
+      /^MYMEMORY WARNING/i.test(translated) ||
+      /ALL AVAILABLE FREE TRANSLATIONS/i.test(translated);
+
+    if (quotaHit) {
+      myMemoryQuotaExhausted = true;
+      console.warn("MyMemory: quota giornaliera esaurita", json.responseDetails || translated);
+      return null;
+    }
+
     return translated || null;
   } catch (err) {
-    console.error("Translation failed", err);
+    console.error("Traduzione MyMemory fallita", err);
     return null;
   }
+}
+
+async function translateText(text, sourceLang, targetLang) {
+  if (sourceLang === targetLang) return text;
+
+  const translator = await getBuiltInTranslator(sourceLang, targetLang);
+  if (translator) {
+    try {
+      const out = await translator.translate(text);
+      if (out) return out;
+    } catch (err) {
+      console.warn("Traduttore integrato fallito, passo a MyMemory", err);
+    }
+  }
+
+  return translateWithMyMemory(text, sourceLang, targetLang);
 }
 
 async function handleIncomingSpeech(text, senderLangCode) {
@@ -473,6 +557,12 @@ async function handleIncomingSpeech(text, senderLangCode) {
   remoteLiveCaption.textContent = text;
   const translated = await translateText(text, senderLangCode, myCaptionLang);
   remoteLiveCaption.textContent = translated || text;
+
+  if (!translated && myMemoryQuotaExhausted && !quotaNoticeShown) {
+    quotaNoticeShown = true;
+    appendTranscript("system", t("translationQuotaExceeded"), null, false);
+  }
+
   appendTranscript(t("remoteLabel"), text, translated || t("noTranslationAvailable"), true);
 }
 

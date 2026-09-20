@@ -87,9 +87,16 @@ in città o paesi diversi.
   riconoscimento vocale che l'app usa. Inoltre Chrome/Edge inviano l'audio ai server di Google
   per trascriverlo (non è un'elaborazione 100% locale) — da tenere presente per conversazioni
   sensibili.
-- **Traduzione con quota gratuita limitata**: MyMemory è gratuito ma ha un tetto giornaliero
-  di richieste per indirizzo IP anonimo. Per un uso normale (poche chiamate al giorno) non
-  dovresti accorgertene; con un uso molto intenso potresti ricevere traduzioni mancanti.
+- **Traduzione: due motori, con limiti diversi.** L'app prova prima il **traduttore integrato
+  nel browser** (Translator API, da Chrome 138 ed Edge 148 in poi, **solo su desktop**): gira in
+  locale sul dispositivo, è gratuito, non ha limiti giornalieri e non manda il testo a nessun
+  server esterno — la prima volta che serve una coppia di lingue il browser scarica da solo il
+  modello. Dove non è disponibile (oggi: tutti i cellulari, e i browser non aggiornati) si ricade
+  su **MyMemory**, gratuito ma con un tetto giornaliero per indirizzo IP: circa 5.000 caratteri
+  in forma anonima. Il limite sale a circa 50.000 caratteri al giorno indicando un'email — senza
+  registrarsi, basta scriverla nella costante `MYMEMORY_EMAIL` in cima ad `app.js`. A quota
+  esaurita i sottotitoli restano nella lingua originale e compare un avviso nella trascrizione,
+  invece di mostrare il messaggio d'errore di MyMemory al posto del testo tradotto.
 - **Un solo ambiente per volta**: pensato per 2 persone, non per chiamate di gruppo.
 - **Il codice di chiamata non è privato**: chiunque conosca il codice generato potrebbe, in
   teoria, provare a connettersi. Va condiviso solo con la persona giusta e usato per chiamate
