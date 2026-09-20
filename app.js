@@ -481,6 +481,13 @@ async function handleIncomingSpeech(text, senderLangCode) {
 // all'infinito, cosa che su alcune reti aziendali può mandare in crash la scheda
 // del browser (loop stretto di richieste che falliscono subito una dopo l'altra).
 const FATAL_SPEECH_ERRORS = ["not-allowed", "service-not-allowed", "audio-capture", "language-not-supported"];
+// "no-speech" (nessun parlato rilevato per qualche secondo) e "aborted" (interruzione
+// interna, es. quando il codice stesso riavvia il riconoscimento) sono del tutto
+// normali durante una conversazione reale: capitano ogni volta che è il turno di
+// parlare dell'altra persona, o semplicemente durante una pausa. Non li contiamo
+// come errori veri, altrimenti bastano poche pause per esaurire i tentativi e
+// fermare tutto per errore.
+const BENIGN_SPEECH_ERRORS = ["no-speech", "aborted"];
 const MAX_SPEECH_ERROR_STREAK = 6;
 
 function startRecognition() {
@@ -522,7 +529,9 @@ function startRecognition() {
 
   recognition.onerror = (event) => {
     console.warn("Speech recognition error:", event.error);
-    recognitionErrorStreak++;
+    if (!BENIGN_SPEECH_ERRORS.includes(event.error)) {
+      recognitionErrorStreak++;
+    }
 
     if (event.error === "network") {
       localLiveCaption.textContent = t("speechNetworkError");
